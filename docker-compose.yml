@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  phi2-server:
+    image: ghcr.io/grahamdwall/phi2-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - LANG=C.UTF-8
+      - TRANSFORMERS_VERBOSITY=error  # Set to debug manually if needed
+      - TRANSFORMERS_CACHE=/app/models
+    volumes:
+      - transformers-cache:/app/models
+    restart: unless-stopped
+
+volumes:
+  transformers-cache:
+    driver: local

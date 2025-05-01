@@ -1,0 +1,24 @@
+# echo $GHCR_TOKEN | docker login ghcr.io -u $GHCR_USERNAME --password-stdin
+# depot build . \                                   
+#  --project f2pmzg1fvb \
+#  --platform linux/amd64 \
+#  --tag ghcr.io/grahamdwall/phi2-server:latest \
+#  --push \
+#  --secret id=ghcr_username,env=GHCR_USERNAME \
+#  --secret id=ghcr_token,env=GHCR_TOKEN
+
+project: f2pmzg1fvb
+
+build:
+  context: .
+  dockerfile: Dockerfile
+  platforms:
+    - linux/amd64
+  push: true
+  tags:
+    - ghcr.io/grahamdwall/phi2-server:latest
+  secrets:
+    - id: ghcr_username
+      env: GHCR_USERNAME
+    - id: ghcr_token
+      env: GHCR_TOKEN
