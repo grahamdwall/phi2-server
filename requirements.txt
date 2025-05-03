@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+gunicorn
+numpy==1.26.4
+transformers>=4.38
+accelerate
+pydantic>=2.0,<3.0
