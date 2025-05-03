@@ -1,0 +1,1 @@
+An app to run an LLM on a RunPod GPU Pod built with Depot and Orbstack (instead of Docker Desktop). The model weights and tokenizers are too big (> 2GB) for GitHub to add them here, even using LFS. But the whole built container is stored in GHCR under the same name.
