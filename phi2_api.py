@@ -12,6 +12,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import uvicorn
 from contextlib import asynccontextmanager
 
+# Set your paths
+LOCAL_MODEL_PATH = "/workspace/data/models/microsoft/phi-2"
+HF_MODEL_PATH = "GrahamWall/phi2-finetune"
+local_files_only_computed = None
+trust_remote_code_computed = None
+
 # Air-Gapped deployment: offline, cloud, serverless
 print("[DEBUG] Starting phi2_api.py... 🚀")
 print(f"[DEBUG] torch.cuda.is_available(): {torch.cuda.is_available()}")
@@ -20,10 +26,32 @@ print(f"[DEBUG] Environment Variables: {os.environ}")
 
 print("Current working directory:", os.getcwd())
 
-if os.path.exists("/workspace/data/models/microsoft/phi-2"):
-    print("Contents of ../workspace/data/models/microsoft/phi-2:")
-    for entry in os.listdir("../workspace/data/models/microsoft/phi-2"):
-        print(" -", entry)
+# Check for local files
+def model_files_exist(path):
+    required_files = ["added_tokens.json", 
+                      "config.json", 
+                      "generation_config.json", 
+                      "model-00001-of-00002.safetensors", 
+                      "model-00002-of-00002.safetensors", 
+                      "model.safetensors.index.json", 
+                      "special_tokens_map.json", 
+                      "tokenizer_config.json", 
+                      "tokenizer.json", 
+                      "vocab.json"]
+    return all(os.path.isfile(os.path.join(path, f)) for f in required_files)
+
+# Decide where to load from
+if os.path.isdir(LOCAL_MODEL_PATH) and model_files_exist(LOCAL_MODEL_PATH):
+    print(f"✅ Loading model from local path: {LOCAL_MODEL_PATH}")
+    model_path = LOCAL_MODEL_PATH
+    local_files_only_computed = True
+    trust_remote_code_computed = False
+else:
+    print(f"⚠️ Local model not found, loading from Hugging Face: {HF_MODEL_PATH}")
+    model_path = HF_MODEL_PATH
+    local_files_only_computed = False
+    trust_remote_code_computed = True
+
 
 # --- SETUP ---
 # If running inside Docker container
@@ -79,16 +107,27 @@ async def lifespan(app: FastAPI):
         print("[DEBUG] Attempting to load model...")
         #model_path = os.getenv("MODEL_PATH", "/workspace/data/models/microsoft/phi-2")
         model = AutoModelForCausalLM.from_pretrained(
-            "/workspace/data/models/microsoft/phi-2",
+            model_path,
             device_map="auto",
             torch_dtype=dtype,
-            local_files_only=True
+            local_files_only=local_files_only_computed,
+            trust_remote_code=trust_remote_code_computed,
         )
         print("[DEBUG] Model loaded successfully ✅")
-        tokenizer = AutoTokenizer.from_pretrained("/workspace/data/models/microsoft/phi-2", local_files_only=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_path, 
+            local_files_only=local_files_only_computed, 
+            trust_remote_code=trust_remote_code_computed,
+        )
         print("[DEBUG] Tokenizer loaded ✅")
         test_output = generate_text("Hello, world!")
         print(f"[DEBUG] Startup generation success: {test_output}")
+        # if we loaded from HF successfully, save to local path for next time
+        if model_path == HF_MODEL_PATH:
+            # Create directory if it doesn't exist
+            os.makedirs(LOCAL_MODEL_PATH, exist_ok=True)
+            model.save_pretrained(LOCAL_MODEL_PATH)
+            tokenizer.save_pretrained(LOCAL_MODEL_PATH)
     except Exception as e:
         print(f"[ERROR] Exception during model loading: {str(e)}")
         raise
